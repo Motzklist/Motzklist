@@ -26,7 +26,7 @@ The project's primary goal is to establish a centralized, digital, and accessibl
 
 The project is built using modern open-source technologies:
 
-* **Language:** Python
+* **Language:** Go, Next.js
 * **Database:** PostgreSQL (Managing schools, grades, and book data)
 * **Backend:** (To be determined/added, e.g., Flask/Django)
 * **Frontend:** (To be determined/added)
@@ -38,27 +38,10 @@ The project is built using modern open-source technologies:
 This section is intended for developers who wish to run the project locally.
 
 ### Prerequisites
-* Python 3.8+
-* PostgreSQL installed and running
 
 ### Installation
 
 *(Detailed instructions will be added soon)*
-
-1.  Clone the repository:
-    ```bash
-    git clone [https://github.com/YourUsername/motzklist.git](https://github.com/YourUsername/motzklist.git)
-    ```
-2.  Install dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
-3.  Database Setup...
-
----
-
-## 🤝 Contributing
-We welcome collaboration! If you would like to contribute to the project, please open an Issue or submit a Pull Request.
 
 ---
 
