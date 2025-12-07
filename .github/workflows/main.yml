@@ -1,0 +1,53 @@
+name: Motzklist CI Pipeline
+
+# 1. Trigger: When does this run?
+# Runs on every push to 'main' branch or when a Pull Request targets 'main'
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    name: Build, Test & Lint
+    runs-on: ubuntu-latest # The virtual environment that runs the job
+
+    steps:
+      # Step 1: Check out the repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Go environment (for Backend & API Gateway)
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      # Step 3: Set up Node.js environment (for Web Frontend)
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Step 4: Install Go Linter
+      # This is required for the 'make lint' command in the backend to work
+      - name: Install golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.2
+
+      # Step 5: Install Dependencies (Executes 'make install')
+      - name: Install Dependencies
+        run: make install
+
+      # Step 6: Code Quality Check (Executes 'make lint')
+      - name: Run Linters
+        run: make lint
+
+      # Step 7: Run Tests (Executes 'make test')
+      - name: Run Tests
+        run: make test
+
+      # Step 8: Build Project (Executes 'make build')
+      - name: Build Project
+        run: make build
