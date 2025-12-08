@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # ------------------------------------------------------------
+  # 1. Frontend Service (Next.js)
+  # ------------------------------------------------------------
+  web:
+    container_name: motzklist_web
+    build:
+      context: ./web # Path to the Next.js repo/directory
+      dockerfile: Dockerfile
+    # Expose to the host machine for access at http://localhost:3000
+    ports:
+      - "3000:3000" 
+    # Environment variable for Next.js to know the API location
+    environment:
+      # Use the service name 'api-gateway' as the hostname, not 'localhost'
+      - NEXT_PUBLIC_API_URL=http://api-gateway:8080 
+    depends_on:
+      - api-gateway # Ensure the backend starts before the frontend
+
+  # ------------------------------------------------------------
+  # 2. API Gateway Service (Go)
+  # ------------------------------------------------------------
+  api-gateway:
+    container_name: motzklist_api_gateway
+    build:
+      context: ./api-gateway-avner # Path to your Go repo/directory
+      dockerfile: Dockerfile
+    # Expose to the host machine for direct access/testing at http://localhost:8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      - database # Ensure the database is ready first
+
+  # ------------------------------------------------------------
+  # 3. Database Service (PostgreSQL Mockup)
+  # ------------------------------------------------------------
+  database:
+    container_name: motzklist_db
+    image: postgres:15-alpine # Use a standard, stable image
+    restart: always
+    environment:
+      # These credentials are used by the Go app (later)
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: motzklist_db
+    volumes:
+      # Ensure data persists between container restarts
+      - motzklist-data:/var/lib/postgresql/data
+
+volumes:
+  motzklist-data:
