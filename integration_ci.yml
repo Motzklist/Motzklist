@@ -1,0 +1,64 @@
+name: Integration CI (web + api + db)
+
+on:
+  push:
+    branches:
+      - "*"
+  pull_request:
+    branches:
+      - "*"
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+
+    services:
+      docker:
+        image: docker:27-dind
+        privileged: true
+        ports:
+          - 3000:3000
+          - 8080:8080
+
+    steps:
+      - name: Checkout Motzklist orchestration repo
+        uses: actions/checkout@v4
+
+      - name: Install Docker CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker.io
+
+      - name: Clone Frontend and Backend repos into expected locations
+        run: |
+          cd ..
+          git clone https://github.com/Motzklist/Front-End.git web
+          git clone https://github.com/Motzklist/Back-End.git api-gateway-avner
+          cd Motzklist
+
+      - name: Build and run stack with Docker Compose
+        run: |
+          docker compose up -d --build
+          # Wait a bit for services to be ready
+          sleep 30
+
+      - name: Check API /api/schools returns data
+        run: |
+          curl -sSf http://localhost:8080/api/schools | tee /tmp/schools.json
+          if ! grep -q "Ben Gurion" /tmp/schools.json; then
+            echo "Expected 'Ben Gurion' in /api/schools response but did not find it"
+            exit 1
+          fi
+
+      - name: Check API /api/equipment returns list
+        run: |
+          curl -sSf "http://localhost:8080/api/equipment?school_id=1&grade_id=9&class_id=1" | tee /tmp/equipment.json
+          if ! grep -q "Notebook" /tmp/equipment.json; then
+            echo "Expected some equipment in response but did not find it"
+            exit 1
+          fi
+
+      # Optional: check that frontend can hit backend by loading the main page
+      - name: Check frontend is up
+        run: |
+          curl -sSf http://localhost:3000 | head
