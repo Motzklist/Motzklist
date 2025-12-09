@@ -102,6 +102,12 @@ The `docker-compose.yml` file orchestrates the entire application. Navigate to t
     # 'sudo' is necessary if running in a WSL/Linux terminal due to Docker socket permissions.
     sudo docker compose up --build
     ```
+3. **Run the integrated system later (after the initial building):**
+   ```bash
+   # This command will run the built system.
+   sudo docker compose up
+   ```
+   
 ---
 ## 5. 🌐 Verification and Access
 
@@ -122,3 +128,4 @@ CTRL+C
 ```
 ---
 **Developed with ❤️ for the residents of Kiryat Motzkin.**
+
