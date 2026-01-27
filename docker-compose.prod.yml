@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  web:
+    container_name: motzklist_web
+    image: motzklist/motzklist-web:v1.0.0
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api-gateway
+
+  api-gateway:
+    container_name: motzklist_api_gateway
+    image: motzklist/motzklist-api:v1.0.0
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - database
+
+  database:
+    container_name: motzklist_db
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: motzklist_db
+    volumes:
+      - motzklist-data:/var/lib/postgresql/data
+
+volumes:
+  motzklist-data:
