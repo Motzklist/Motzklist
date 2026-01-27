@@ -86,8 +86,14 @@ go mod tidy
 cd ..
 ```
 ---
+## 4. Run the System on Google Cloud
+The system was deployed onto Google's server. In order to run it, one can simply copy the next link:
+```
+https://motzklist-web-700891140984.me-west1.run.app/
+```
+And paste it in the web browser.
 
-## 4. 🐳 Build and Run the System
+## 5. 🐳 Build and Run the System Locally
 
 The `docker-compose.yml` file orchestrates the entire application. Navigate to the directory containing this file and execute the build command to start the entire stack.
 
@@ -107,25 +113,83 @@ The `docker-compose.yml` file orchestrates the entire application. Navigate to t
    # This command will run the built system.
    sudo docker compose up
    ```
-   
----
-## 5. 🌐 Verification and Access
+
+
+### 5.1 🌐 Verification and Access
 
 Once the terminal logs indicate that the services are listening (PostgreSQL is ready, Next.js server has started), the system is fully active.
 
 * **Frontend (Web):** Access your application interface at:
-    **`http://localhost:3000`**
+  **`http://localhost:3000`**
 
 * **API Gateway (Backend):** Test the API connectivity directly by querying the schools endpoint:
-    **`http://localhost:8080/api/schools`**
+  **`http://localhost:8080/api/schools`**
 
----
-## 6. 🛑 Shutdown
+
+### 5.2 🛑 Shutdown
 
 To gracefully stop all running containers and free up the port resources, return to the terminal window running `docker compose up` and press:
 ```
 CTRL+C
 ```
----
-**Developed with ❤️ for the residents of Kiryat Motzkin.**
 
+---
+## 6. Deployment
+### 🛠️ Phase 1: Preparation
+Before running commands, ensure your local environment is authenticated to your Google Cloud account.
+1. **open your terminal** (WSL or PowerShell).
+2. **Login to Google Cloud:**
+```Bash
+gcloud auth login
+```
+3. **Set your Project ID:**
+```Bash
+gcloud config set project [YOUR_PROJECT_ID]
+```
+4. **Configure Docker to push to Google**
+```Bash
+gcloud auth configure-docker
+```
+### 🏗️ Phase 2: Building and Pushing Images
+Since the project is split into different containers, you must deploy them separately.
+1. **The Backend**
+   Navigate to the backend directory and build the image directly in the cloud using Google Build:
+```Bash
+cd Backend
+gcloud builds submit --tag gcr.io/[PROJECT_ID]/motzklist-api
+```
+2. **The Frontend**
+   Navigate to the web directory and repeat the process:
+```Bash
+cd ../web
+gcloud builds submit --tag gcr.io/[PROJECT_ID]/motzklist-web
+```
+### 🚀 Phase 3: Deploying to Cloud Run
+Once the images are in the registry, you tell Cloud Run to start them as services.
+1. **Deploy the API**
+```Bash
+gcloud run deploy motzklist-api \
+  --image gcr.io/[PROJECT_ID]/motzklist-api \
+  --platform managed \
+  --region me-west1 \
+  --allow-unauthenticated
+```
+2. **Deploy the Web Frontend**
+```Bash
+gcloud run deploy motzklist-web \
+  --image gcr.io/[PROJECT_ID]/motzklist-web \
+  --platform managed \
+  --region me-west1 \
+  --allow-unauthenticated
+  ```
+* **Region:** note that the region should be me-west1 (Israel's region)
+* **Environment Variables:** When deploying the Web service, you might need to provide the new URL of the API service so they can talk to each other.
+### 📊 Summary Table
+| Service  | Directory             | Cloud Run Name | Live URL 
+|----------|-----------------------|-----------|-----------|
+| Backend  | Backend / api-gateway | motzklist-api | https://motzklist-api-5f3nhomivq-zf.a.run.app
+| Frontend | Frontend / Web        | motzklist-web | https://motzklist-web-700891140984.me-west1.run.app/
+
+
+
+**Developed with ❤️ for the residents of Kiryat Motzkin.**
