@@ -59,6 +59,24 @@ jobs:
           npm install -D @playwright/test wait-on
           npx playwright install --with-deps chromium
 
+      # Step 9b: Checkout Front-End repo
+      - name: Checkout Front-End
+        uses: actions/checkout@v4
+        with:
+          repository: 'Motzklist/Front-End'
+          path: '../Front-End'
+
+      # Step 9c: Checkout Back-End repo
+      - name: Checkout Back-End
+        uses: actions/checkout@v4
+        with:
+          repository: 'Motzklist/Back-End'
+          path: '../Back-End'
+
+      # Step 10: Start Full System with Docker
+      - name: Start Environment with Docker Compose
+        run: docker compose up --build -d
+
       # Step 10: Start Full System with Docker
       - name: Start Environment with Docker Compose
         run: docker compose up --build -d
