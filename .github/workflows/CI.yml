@@ -64,14 +64,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: 'Motzklist/Front-End'
-          path: '../Front-End'
+          path: 'Front-End'
 
       # Step 9c: Checkout Back-End repo
       - name: Checkout Back-End
         uses: actions/checkout@v4
         with:
           repository: 'Motzklist/Back-End'
-          path: '../Back-End'
+          path: 'Back-End'
 
       # Step 10: Start Full System with Docker
       - name: Start Environment with Docker Compose
