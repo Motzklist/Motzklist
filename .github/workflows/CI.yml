@@ -61,7 +61,7 @@ jobs:
 
       # Step 10: Start Full System with Docker
       - name: Start Environment with Docker Compose
-        run: docker-compose up --build -d
+        run: docker compose up --build -d
 
       # Step 11: Wait for Next.js to be ready
       - name: Wait for Frontend
