@@ -1,0 +1,27 @@
+{
+  "name": "motzklist",
+  "version": "1.0.0",
+  "description": "> **A management and accessibility system for school textbook lists in Kiryat Motzkin.**",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Motzklist/Motzklist.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Motzklist/Motzklist/issues"
+  },
+  "homepage": "https://github.com/Motzklist/Motzklist#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
+  }
+}

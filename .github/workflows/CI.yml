@@ -51,3 +51,22 @@ jobs:
       # Step 8: Build Project (Executes 'make build')
       - name: Build Project
         run: make build
+
+      # Step 9: Install Playwright and wait-on
+      - name: Install E2E Dependencies
+        run: |
+          npm init -y
+          npm install -D @playwright/test wait-on
+          npx playwright install --with-deps chromium
+
+      # Step 10: Start Full System with Docker
+      - name: Start Environment with Docker Compose
+        run: docker-compose up --build -d
+
+      # Step 11: Wait for Next.js to be ready
+      - name: Wait for Frontend
+        run: npx wait-on http://localhost:3000 --timeout 120000
+
+      # Step 12: Run Playwright Tests
+      - name: Run End to End Tests
+        run: npx playwright test
