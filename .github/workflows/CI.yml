@@ -44,9 +44,9 @@ jobs:
       - name: Run Linters
         run: make lint
 
-      # Step 7: Run Tests (Executes 'make test')
-      - name: Run Tests
-        run: make test
+      # Step 7: Run Unit Tests (Executes 'npm test')
+      - name: Run Unit Tests
+        run: npm test
 
       # Step 8: Build Project (Executes 'make build')
       - name: Build Project
@@ -55,7 +55,6 @@ jobs:
       # Step 9: Install Playwright and wait-on
       - name: Install E2E Dependencies
         run: |
-          npm init -y
           npm install -D @playwright/test wait-on
           npx playwright install --with-deps chromium
 
@@ -77,14 +76,10 @@ jobs:
       - name: Start Environment with Docker Compose
         run: docker compose up --build -d
 
-      # Step 10: Start Full System with Docker
-      - name: Start Environment with Docker Compose
-        run: docker compose up --build -d
-
       # Step 11: Wait for Next.js to be ready
       - name: Wait for Frontend
         run: npx wait-on http://localhost:3000 --timeout 120000
 
-      # Step 12: Run Playwright Tests
+      # Step 12: Run Playwright E2E Tests
       - name: Run End to End Tests
-        run: npx playwright test
+        run: npm run test:e2e
