@@ -44,9 +44,11 @@ jobs:
       - name: Run Linters
         run: make lint
 
-      # Step 7: Run Unit Tests (Executes 'npm test')
+      # Step 7: Run Unit Tests
       - name: Run Unit Tests
-        run: npm test
+        run: |
+          npm install
+          npm test
 
       # Step 8: Build Project (Executes 'make build')
       - name: Build Project
