@@ -8,7 +8,7 @@
   },
   "scripts": {
     "test": "jest --passWithNoTests",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test e2e/"
   },
   "repository": {
     "type": "git",
