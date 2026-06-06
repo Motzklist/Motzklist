@@ -23,6 +23,7 @@
   },
   "homepage": "https://github.com/Motzklist/Motzklist#readme",
   "devDependencies": {
-    "@playwright/test": "^1.60.0"
+    "@playwright/test": "^1.60.0",
+    "jest": "^30.4.2"
   }
 }
