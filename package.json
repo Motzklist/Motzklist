@@ -1,14 +1,14 @@
 {
   "name": "motzklist",
   "version": "1.0.0",
-  "description": "> **A management and accessibility system for school textbook lists in Kiryat Motzkin.**",
+  "description": "Integration repo for Motzklist: docker-compose orchestration and end-to-end tests for the school textbook list system of Kiryat Motzkin.",
   "main": "index.js",
   "directories": {
     "doc": "docs"
   },
   "scripts": {
     "test": "jest --passWithNoTests",
-    "test:e2e": "playwright test e2e/"
+    "test:e2e": "playwright test"
   },
   "repository": {
     "type": "git",

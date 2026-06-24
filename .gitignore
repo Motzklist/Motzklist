@@ -1,1 +1,13 @@
 node_modules/
+
+# Playwright e2e artifacts
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+# Sub-repositories cloned in as siblings for docker-compose / e2e.
+# These are separate Git repos and must not be committed here.
+/Front-End/
+/Admin-Front-End/
+/Back-End/
+/Database/

@@ -1,88 +1,134 @@
-name: Motzklist CI Pipeline
+name: Motzklist CI — Integration & E2E
 
-# 1. Trigger: When does this run?
-# Runs on every push to 'main' branch or when a Pull Request targets 'main'
+# Builds the whole stack from the four sub-repositories with docker-compose and
+# runs the Playwright end-to-end tests against it. Each sub-repo runs its own
+# unit tests / linting in its own CI; this pipeline validates the integration.
+
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
+    inputs:
+      frontend_ref:
+        description: 'Motzklist/Front-End ref'
+        default: 'main'
+      admin_ref:
+        description: 'Motzklist/Admin-Front-End ref'
+        default: 'main'
+      backend_ref:
+        description: 'Motzklist/Back-End ref'
+        default: 'main'
+      database_ref:
+        description: 'Motzklist/Database ref'
+        default: 'main'
 
 jobs:
-  build-and-test:
-    name: Build, Test & Lint
-    runs-on: ubuntu-latest # The virtual environment that runs the job
+  e2e:
+    name: Build stack & run E2E
+    runs-on: ubuntu-latest
+
+    # All four sub-repos live under the Motzklist org. Override a ref per run via
+    # workflow_dispatch to test an unmerged branch before it lands on main.
+    env:
+      FRONTEND_REF: ${{ github.event.inputs.frontend_ref || 'main' }}
+      ADMIN_REF: ${{ github.event.inputs.admin_ref || 'main' }}
+      BACKEND_REF: ${{ github.event.inputs.backend_ref || 'main' }}
+      DATABASE_REF: ${{ github.event.inputs.database_ref || 'main' }}
 
     steps:
-      # Step 1: Check out the repository code
-      - name: Checkout code
+      # ----------------------------------------------------------------------
+      # Check out this orchestration repo plus the four sub-repos as siblings.
+      # All Motzklist repos are public, so the default token reads them and the
+      # workflow runs on free Actions minutes — no PAT/secret required.
+      # ----------------------------------------------------------------------
+      - name: Checkout integration repo
         uses: actions/checkout@v4
 
-      # Step 2: Set up Go environment (for Backend & API Gateway)
-      - name: Set up Go
-        uses: actions/setup-go@v4
+      - name: Checkout client front-end
+        uses: actions/checkout@v4
         with:
-          go-version: '1.21'
+          repository: Motzklist/Front-End
+          ref: ${{ env.FRONTEND_REF }}
+          path: Front-End
 
-      # Step 3: Set up Node.js environment (for Web Frontend)
+      - name: Checkout admin front-end
+        uses: actions/checkout@v4
+        with:
+          repository: Motzklist/Admin-Front-End
+          ref: ${{ env.ADMIN_REF }}
+          path: Admin-Front-End
+
+      - name: Checkout backend
+        uses: actions/checkout@v4
+        with:
+          repository: Motzklist/Back-End
+          ref: ${{ env.BACKEND_REF }}
+          path: Back-End
+
+      - name: Checkout database
+        uses: actions/checkout@v4
+        with:
+          repository: Motzklist/Database
+          ref: ${{ env.DATABASE_REF }}
+          path: Database
+
+      # ----------------------------------------------------------------------
+      # E2E test runner setup
+      # ----------------------------------------------------------------------
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
-      # Step 4: Install Go Linter
-      # This is required for the 'make lint' command in the backend to work
-      - name: Install golangci-lint
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.2
+      - name: Install test dependencies
+        run: npm ci
 
-      # Step 5: Install Dependencies (Executes 'make install')
-      - name: Install Dependencies
-        run: make install
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
 
-      # Step 6: Code Quality Check (Executes 'make lint')
-      - name: Run Linters
-        run: make lint
-
-      # Step 7: Run Unit Tests
-      - name: Run Unit Tests
-        run: |
-          npm install
-          npm test
-
-      # Step 8: Build Project (Executes 'make build')
-      - name: Build Project
-        run: make build
-
-      # Step 9: Install Playwright and wait-on
-      - name: Install E2E Dependencies
-        run: |
-          npm install -D @playwright/test wait-on
-          npx playwright install --with-deps chromium
-
-      # Step 9b: Checkout Front-End repo
-      - name: Checkout Front-End
-        uses: actions/checkout@v4
-        with:
-          repository: 'Motzklist/Front-End'
-          path: 'Front-End'
-
-      # Step 9c: Checkout Back-End repo
-      - name: Checkout Back-End
-        uses: actions/checkout@v4
-        with:
-          repository: 'Motzklist/Back-End'
-          path: 'Back-End'
-
-      # Step 10: Start Full System with Docker
-      - name: Start Environment with Docker Compose
+      # ----------------------------------------------------------------------
+      # Build and start the full stack
+      # ----------------------------------------------------------------------
+      - name: Start stack with Docker Compose
         run: docker compose up --build -d
 
-      # Step 11: Wait for Next.js to be ready
-      - name: Wait for Frontend
-        run: npx wait-on http://localhost:3000 --timeout 120000
+      - name: Wait for services to be ready
+        run: |
+          set -e
+          wait_for() {
+            echo "Waiting for $1 ..."
+            for i in $(seq 1 60); do
+              if curl -sSf -o /dev/null "$1"; then echo "  ready"; return 0; fi
+              sleep 5
+            done
+            echo "  timed out waiting for $1"
+            return 1
+          }
+          wait_for http://localhost:8080/api/schools
+          wait_for http://localhost:3000
+          wait_for http://localhost:3001/signin
 
-      # Step 12: Run Playwright E2E Tests
-      - name: Run End to End Tests
+      - name: Run end-to-end tests
         run: npm run test:e2e
+
+      # ----------------------------------------------------------------------
+      # Diagnostics + cleanup
+      # ----------------------------------------------------------------------
+      - name: Dump service logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          if-no-files-found: ignore
+
+      - name: Tear down stack
+        if: always()
+        run: docker compose down -v
