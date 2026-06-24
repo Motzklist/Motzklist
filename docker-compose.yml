@@ -1,62 +1,119 @@
-version: '3.8'
+# ==============================================================================
+# Motzklist — local integration stack
+# ==============================================================================
+# Orchestrates the four sub-repositories into one running system. Every service
+# is built from a sibling directory that must be checked out next to this file:
+#
+#   Motzklist/            <- this repo (docker-compose.yml, e2e tests, docs)
+#   ├── Front-End/        <- Motzklist/Front-End       (client, Next.js)
+#   ├── Admin-Front-End/  <- Motzklist/Admin-Front-End (admin, Next.js)
+#   ├── Back-End/         <- Motzklist/Back-End        (API gateway, Go)
+#   └── Database/         <- Motzklist/Database        (schema + seed SQL)
+#
+# See README.md ("Repository Setup") for the clone commands. Bring it up with:
+#   docker compose up --build
+# ==============================================================================
 
 services:
   # ------------------------------------------------------------
-  # 1. Frontend Service (Next.js)
+  # 1. Client front-end (Next.js) — parents browse and order lists
   # ------------------------------------------------------------
-  web:
-    container_name: motzklist_web
+  frontend:
+    container_name: motzklist-frontend
     build:
-      context: ./Front-End # Path to the Next.js repo/directory
+      context: ./Front-End
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=http://localhost:8080
-    # Expose to the host machine for access at http://localhost:3000
+        # NEXT_PUBLIC_* is inlined into the browser bundle at build time, so it
+        # must be the URL the *browser* uses — localhost, not the compose
+        # service name (the backend port is published to the host below).
+        NEXT_PUBLIC_API_URL: http://localhost:8080
     ports:
-      - "3000:3000" 
-    # Environment variable for Next.js to know the API location
+      - "3000:3000"
     environment:
-      # Use the service name 'api-gateway' as the hostname, not 'localhost'
-      - NEXT_PUBLIC_API_URL=http://api-gateway:8080 
+      NEXT_PUBLIC_API_URL: http://localhost:8080
     depends_on:
-      - api-gateway # Ensure the backend starts before the frontend
+      backend:
+        condition: service_started
 
   # ------------------------------------------------------------
-  # 2. API Gateway Service (Go)
+  # 2. Admin front-end (Next.js) — staff manage schools/lists/orders
   # ------------------------------------------------------------
-  api-gateway:
-    container_name: motzklist_api_gateway
+  admin:
+    container_name: motzklist-admin
     build:
-      context: ./Back-End # Path to your Go repo/directory
+      context: ./Admin-Front-End
       dockerfile: Dockerfile
-    # Expose to the host machine for direct access/testing at http://localhost:8080
+      args:
+        # The admin calls its own same-origin /api/* routes, which proxy
+        # server-side to the backend via API_URL (see below).
+        NEXT_PUBLIC_API_URL: /api
+        NEXT_PUBLIC_USE_MOCKS: "false"
+        API_URL: http://backend:8080
+        SESSION_SECRET: local-dev-secret-change-me
+    ports:
+      - "3001:3001"
+    environment:
+      # Read server-side at request time by the Next.js API routes.
+      API_URL: http://backend:8080
+      SESSION_SECRET: local-dev-secret-change-me
+    depends_on:
+      backend:
+        condition: service_started
+
+  # ------------------------------------------------------------
+  # 3. API gateway (Go) — single backend for both front-ends
+  # ------------------------------------------------------------
+  backend:
+    container_name: motzklist-backend
+    build:
+      context: ./Back-End
+      dockerfile: Dockerfile
     ports:
       - "8080:8080"
-    environment:
-      - DB_HOST=database
-      - DB_PORT=5432
-      - DB_USER=user
-      - DB_PASSWORD=password
-      - DB_NAME=motzklist_db
     depends_on:
-      - database # Ensure the database is ready first
+      database:
+        condition: service_healthy
+    environment:
+      # Match the database service below. Go reads these via getenvDefault().
+      DB_HOST: database
+      DB_USER: user
+      DB_PASSWORD: user
+      DB_NAME: motzklist_db
+      DB_SSLMODE: disable
+      # CORS allow-origin used by enableCORS() for the client front-end.
+      CLIENT_ORIGIN: http://localhost:3000
+    # Provides STRIPE_SECRET_KEY / FRONTEND_URL for the payment handlers.
+    # Optional: the stack (and the e2e tests) run fine without it; only the
+    # Stripe payment flow needs a real key.
+    env_file:
+      - path: ./Back-End/.env
+        required: false
 
   # ------------------------------------------------------------
-  # 3. Database Service (PostgreSQL Mockup)
+  # 4. Database (PostgreSQL) — schema + seed come from the Database repo
   # ------------------------------------------------------------
   database:
-    container_name: motzklist_db
-    image: postgres:15-alpine # Use a standard, stable image
+    container_name: motzklist-db
+    image: postgres:15-alpine
     restart: always
     environment:
-      # These credentials are used by the Go app (later)
       POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: user
       POSTGRES_DB: motzklist_db
     volumes:
-      # Ensure data persists between container restarts
-      - motzklist-data-v3:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - motzklist-data:/var/lib/postgresql/data
+      # Files in /docker-entrypoint-initdb.d run in alphabetical order, and only
+      # on a fresh data volume, so 01-init.sql creates the schema before
+      # 02-seed.sql inserts the mock data. The Database repo is the single
+      # source of truth for both.
+      - ./Database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./Database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d motzklist_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
-  motzklist-data-v3:
+  motzklist-data:

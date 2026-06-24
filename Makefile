@@ -1,113 +1,59 @@
 # ==============================================================================
-# 🛠️ Motzklist - Root Project Makefile
+# Motzklist — integration repo Makefile
+# ==============================================================================
+# This repo orchestrates the four sub-repositories (client, admin, backend,
+# database) via docker-compose and runs the end-to-end tests against the running
+# stack. Each sub-repo has its own build/lint/test pipeline; this Makefile only
+# covers the integrated system.
 # ==============================================================================
 
-# Directory Variables
-GATEWAY_DIR := api-gateway
-BACKEND_DIR := backend
-WEB_DIR     := web
-DB_DIR      := database
+COMPOSE := docker compose
 
-.PHONY: all install test lint build clean dev help
+.PHONY: help up down restart logs ps build e2e install clean
 
-# Default target: Help
 help:
-	@echo "Available commands:"
-	@echo "  make install  - Install dependencies for all services"
-	@echo "  make test     - Run tests for all services"
-	@echo "  make lint     - Run linters for all services"
-	@echo "  make build    - Build all services"
-	@echo "  make dev      - Run the entire environment locally"
-	@echo "  make db-up    - Start database container/service"
+	@echo "Motzklist integration commands:"
+	@echo "  make up       - Build and start the full stack (client, admin, backend, db)"
+	@echo "  make down     - Stop the stack and remove containers"
+	@echo "  make restart  - Recreate the stack from scratch"
+	@echo "  make logs     - Follow logs from all services"
+	@echo "  make ps       - Show running services"
+	@echo "  make install  - Install the e2e test dependencies + Playwright browser"
+	@echo "  make e2e      - Run the Playwright end-to-end tests (stack must be up)"
+	@echo "  make clean    - Stop the stack and delete the database volume"
 
-# ==============================================================================
-# 📦 Installation
-# ==============================================================================
-install:
-	@echo "--- Installing Dependencies ---"
-	
-	@echo "📦 [API Gateway] Installing..."
-	# TODO: cd $(GATEWAY_DIR) && go mod tidy
-	
-	@echo "📦 [Backend] Installing..."
-	# TODO: cd $(BACKEND_DIR) && go mod tidy
-	
-	@echo "📦 [Web] Installing..."
-	# TODO: cd $(WEB_DIR) && npm install
+# ------------------------------------------------------------------------------
+# Stack lifecycle
+# ------------------------------------------------------------------------------
+up:
+	$(COMPOSE) up --build -d
 
-# ==============================================================================
-# 🧪 Quality Assurance (Lint & Test)
-# ==============================================================================
-lint:
-	@echo "--- Linting Codebase ---"
-	
-	@echo "🔍 [API Gateway] Linting..."
-	# TODO: cd $(GATEWAY_DIR) && ...
-	
-	@echo "🔍 [Backend] Linting..."
-	# TODO: cd $(BACKEND_DIR) && ...
-	
-	@echo "🔍 [Web] Linting..."
-	# TODO: cd $(WEB_DIR) && npm run lint
+down:
+	$(COMPOSE) down
 
-test:
-	@echo "--- Running Tests ---"
-	
-	@echo "🧪 [API Gateway] Testing..."
-	# TODO: cd $(GATEWAY_DIR) && go test ./...
-	
-	@echo "🧪 [Backend] Testing..."
-	# TODO: cd $(BACKEND_DIR) && go test ./...
-	
-	@echo "🧪 [Web] Testing..."
-	# TODO: cd $(WEB_DIR) && npm test
+restart: down up
 
-# ==============================================================================
-# 🏗️ Build
-# ==============================================================================
 build:
-	@echo "--- Building Services ---"
-	
-	@echo "🔨 [API Gateway] Building..."
-	# TODO: cd $(GATEWAY_DIR) && go build -o bin/gateway main.go
-	
-	@echo "🔨 [Backend] Building..."
-	# TODO: cd $(BACKEND_DIR) && go build -o bin/server main.go
-	
-	@echo "🔨 [Web] Building..."
-	# TODO: cd $(WEB_DIR) && npm run build
+	$(COMPOSE) build
 
-# ==============================================================================
-# 🗄️ Database Management
-# ==============================================================================
-db-up:
-	@echo "--- Starting Database ---"
-	# TODO: cd $(DB_DIR) && docker-compose up -d
+logs:
+	$(COMPOSE) logs -f
 
-db-migrate:
-	@echo "--- Running Migrations ---"
-	# TODO: Run migration scripts from $(DB_DIR) or $(BACKEND_DIR)
+ps:
+	$(COMPOSE) ps
 
-# ==============================================================================
-# 🚀 Development (Run Everything)
-# ==============================================================================
-# Use -j4 to run 4 targets in parallel
-dev:
-	@echo "🚀 Starting Full Stack Environment..."
-	$(MAKE) -j4 run-db run-gateway run-backend run-web
+# ------------------------------------------------------------------------------
+# End-to-end tests
+# ------------------------------------------------------------------------------
+install:
+	npm ci
+	npx playwright install --with-deps chromium
 
-run-db:
-	@echo "🐘 [Database] Running..."
-	# TODO: Command to start DB (or keep it as dependency)
+e2e:
+	npm run test:e2e
 
-run-gateway:
-	@echo "🌐 [API Gateway] Running..."
-	# TODO: cd $(GATEWAY_DIR) && go run main.go
-
-run-backend:
-	@echo "⚙️ [Backend] Running..."
-	# TODO: cd $(BACKEND_DIR) && go run main.go
-
-run-web:
-	@echo "💻 [Web] Running..."
-	# TODO: cd $(WEB_DIR) && npm run dev
+# ------------------------------------------------------------------------------
+# Cleanup (removes the seeded database volume too)
+# ------------------------------------------------------------------------------
+clean:
+	$(COMPOSE) down -v

@@ -1,34 +1,76 @@
-version: '3.8'
+# ==============================================================================
+# Motzklist — production-style compose (pre-built images)
+# ==============================================================================
+# Unlike docker-compose.yml (which builds from the sibling source repos), this
+# file runs pre-built, tagged images and is meant for a self-hosted deployment.
+# The primary production target is Google Cloud Run (see README "Deployment");
+# this compose is the single-host alternative.
+#
+# Push images first, e.g.:
+#   docker build -t motzklist/frontend:v1.0.0 ./Front-End
+#   docker build -t motzklist/admin:v1.0.0    ./Admin-Front-End
+#   docker build -t motzklist/backend:v1.0.0  ./Back-End
+#
+# The database schema (Database/init.sql) is mounted for first-time init. Unlike
+# the dev stack, no mock seed data is loaded — seed real data separately.
+# ==============================================================================
 
 services:
-  web:
-    container_name: motzklist_web
-    image: motzklist/motzklist-web:v1.0.0
+  frontend:
+    container_name: motzklist-frontend
+    image: motzklist/frontend:v1.0.0
     restart: always
     ports:
       - "3000:3000"
     depends_on:
-      - api-gateway
+      - backend
 
-  api-gateway:
-    container_name: motzklist_api_gateway
-    image: motzklist/motzklist-api:v1.0.0
+  admin:
+    container_name: motzklist-admin
+    image: motzklist/admin:v1.0.0
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      API_URL: http://backend:8080
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in your environment}
+    depends_on:
+      - backend
+
+  backend:
+    container_name: motzklist-backend
+    image: motzklist/backend:v1.0.0
     restart: always
     ports:
       - "8080:8080"
+    environment:
+      DB_HOST: database
+      DB_USER: user
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in your environment}
+      DB_NAME: motzklist_db
+      DB_SSLMODE: disable
+      CLIENT_ORIGIN: ${CLIENT_ORIGIN:-http://localhost:3000}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
     depends_on:
-      - database
+      database:
+        condition: service_healthy
 
   database:
-    container_name: motzklist_db
+    container_name: motzklist-db
     image: postgres:15-alpine
     restart: always
     environment:
       POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in your environment}
       POSTGRES_DB: motzklist_db
     volumes:
       - motzklist-data:/var/lib/postgresql/data
+      - ./Database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d motzklist_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   motzklist-data:
