@@ -7,7 +7,7 @@
     "doc": "docs"
   },
   "scripts": {
-    "test": "jest --passWithNoTests",
+    "test": "echo \"This repo's tests are end-to-end. Start the stack (docker compose up) then run: npm run test:e2e\"",
     "test:e2e": "playwright test"
   },
   "repository": {
@@ -23,13 +23,6 @@
   },
   "homepage": "https://github.com/Motzklist/Motzklist#readme",
   "devDependencies": {
-    "@playwright/test": "^1.60.0",
-    "jest": "^30.4.2"
-  },
-  "jest": {
-    "testPathIgnorePatterns": [
-      "/node_modules/",
-      "/e2e/"
-    ]
+    "@playwright/test": "^1.60.0"
   }
 }
