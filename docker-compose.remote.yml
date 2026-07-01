@@ -1,0 +1,118 @@
+# ==============================================================================
+# Motzklist — remote-source stack (build straight from GitHub)
+# ==============================================================================
+# Same running system as docker-compose.yml, but every service is built from a
+# git remote context instead of a sibling directory. Nothing needs to be checked
+# out locally and no image registry is involved — Docker/BuildKit clones each
+# repo, builds it, and runs it. All four Motzklist repos are public, so no
+# credentials are required.
+#
+# Bring it up with:
+#   docker compose -f docker-compose.remote.yml up --build
+#
+# Pin a specific ref by changing the "#main" suffix to a tag or commit SHA, e.g.
+#   context: "https://github.com/Motzklist/Back-End.git#v1.0.0"
+#
+# Provide a real Stripe key by putting it in a .env file next to this compose
+# file (Compose auto-loads it) or exporting it in your shell:
+#   STRIPE_SECRET_KEY=sk_live_or_test_xxx
+# The stack runs fine without it; only the Stripe payment flow needs a real key.
+# ==============================================================================
+
+services:
+  # ------------------------------------------------------------
+  # 1. Client front-end (Next.js)
+  # ------------------------------------------------------------
+  frontend:
+    container_name: motzklist-frontend
+    build:
+      context: "https://github.com/Motzklist/Front-End.git#main"
+      dockerfile: Dockerfile
+      args:
+        # Inlined into the browser bundle at build time, so it must be the URL
+        # the *browser* uses — localhost, not the compose service name.
+        NEXT_PUBLIC_API_URL: http://localhost:8080
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+    depends_on:
+      backend:
+        condition: service_started
+
+  # ------------------------------------------------------------
+  # 2. Admin front-end (Next.js)
+  # ------------------------------------------------------------
+  admin:
+    container_name: motzklist-admin
+    build:
+      context: "https://github.com/Motzklist/Admin-Front-End.git#main"
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: /api
+        NEXT_PUBLIC_USE_MOCKS: "false"
+        API_URL: http://backend:8080
+        SESSION_SECRET: ${SESSION_SECRET:-local-dev-secret-change-me}
+    ports:
+      - "3001:3001"
+    environment:
+      API_URL: http://backend:8080
+      SESSION_SECRET: ${SESSION_SECRET:-local-dev-secret-change-me}
+    depends_on:
+      backend:
+        condition: service_started
+
+  # ------------------------------------------------------------
+  # 3. API gateway (Go)
+  # ------------------------------------------------------------
+  backend:
+    container_name: motzklist-backend
+    build:
+      context: "https://github.com/Motzklist/Back-End.git#main"
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      DB_HOST: database
+      DB_USER: user
+      DB_PASSWORD: user
+      DB_NAME: motzklist_db
+      DB_SSLMODE: disable
+      CLIENT_ORIGIN: http://localhost:3000
+      # Optional — supplied from your shell or the .env file beside this compose.
+      # Empty by default so the stack still boots without Stripe configured.
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+
+  # ------------------------------------------------------------
+  # 4. Database (PostgreSQL) — schema + seed baked from the Database repo
+  # ------------------------------------------------------------
+  # There is no file to mount from a git context, so instead of mounting
+  # init.sql/seed.sql we build a tiny image that COPYs them into the Postgres
+  # init directory. They run in alphabetical order on a fresh data volume only.
+  database:
+    container_name: motzklist-db
+    build:
+      context: "https://github.com/Motzklist/Database.git#main"
+      dockerfile_inline: |
+        FROM postgres:15-alpine
+        COPY init.sql /docker-entrypoint-initdb.d/01-init.sql
+        COPY seed.sql /docker-entrypoint-initdb.d/02-seed.sql
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: user
+      POSTGRES_DB: motzklist_db
+    volumes:
+      - motzklist-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d motzklist_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  motzklist-data:
