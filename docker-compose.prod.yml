@@ -11,6 +11,10 @@
 #   docker build -t motzklist/admin:v1.0.0    ./Admin-Front-End
 #   docker build -t motzklist/backend:v1.0.0  ./Back-End
 #
+# NOTE: the admin image talks to the live backend by default. To build a demo
+# image backed by mock data, pass --build-arg NEXT_PUBLIC_USE_MOCKS=true (the
+# flag is inlined into the bundle at BUILD time, not read at runtime).
+#
 # The database schema (Database/init.sql) is mounted for first-time init. Unlike
 # the dev stack, no mock seed data is loaded — seed real data separately.
 # ==============================================================================
