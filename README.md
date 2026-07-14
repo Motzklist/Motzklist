@@ -190,7 +190,6 @@ gcloud run deploy motzklist-admin --image gcr.io/[PROJECT_ID]/motzklist-admin --
 |----------|-----------------|-------------------------------------------------------|
 | Backend  | `motzklist-api` | https://motzklist-api-5f3nhomivq-zf.a.run.app         |
 | Frontend | `motzklist-web` | https://motzklist-web-700891140984.me-west1.run.app/  |
-
 ## License
 
-Licensed under the [Apache License 2.0](LICENSE).
+This project is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0). See the [LICENSE](LICENSE) file for details.
