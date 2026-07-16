@@ -62,7 +62,7 @@ that accesses the database.
 ### Prerequisites
 
 - **Git**
-- **Docker Desktop** (with the `docker compose` plugin)
+- **Docker** (with the `docker compose` plugin)
 - **Node.js 20+** (required only to run the end-to-end tests)
 
 ### 1. Repository Setup
